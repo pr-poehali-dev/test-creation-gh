@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
@@ -7,6 +7,7 @@ import HomePage from '@/components/home/HomePage';
 import TestPage, { getQuestions } from '@/components/test/TestPage';
 import ProfilePage from '@/components/profile/ProfilePage';
 import AchievementsPage from '@/components/achievements/AchievementsPage';
+import AuthModal from '@/components/auth/AuthModal';
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState('home');
@@ -19,6 +20,58 @@ export default function Index() {
   const [userLevel, setUserLevel] = useState(3);
   const [userXP, setUserXP] = useState(450);
   const [testsCompleted, setTestsCompleted] = useState(12);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      verifyToken(token);
+    }
+  }, []);
+
+  const verifyToken = async (token: string) => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/c33d035d-88e4-4a23-b1ab-f61e2bac0717', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', token }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.user) {
+        setAuthToken(token);
+        setUser(data.user);
+        setUserLevel(data.user.level);
+        setUserXP(data.user.xp);
+        setTestsCompleted(data.user.tests_completed);
+      } else {
+        localStorage.removeItem('auth_token');
+      }
+    } catch (err) {
+      localStorage.removeItem('auth_token');
+    }
+  };
+
+  const handleAuthSuccess = (token: string, userData: any) => {
+    setAuthToken(token);
+    setUser(userData);
+    setUserLevel(userData.level);
+    setUserXP(userData.xp);
+    setTestsCompleted(userData.tests_completed);
+    setShowAuthModal(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    setAuthToken(null);
+    setUser(null);
+    setUserLevel(1);
+    setUserXP(0);
+    setTestsCompleted(0);
+  };
 
   const startTest = (testId: string) => {
     setCurrentTest(testId);
@@ -49,12 +102,47 @@ export default function Index() {
       setSelectedAnswer(null);
     } else {
       setTestComplete(true);
-      setUserXP(userXP + 50);
-      setTestsCompleted(testsCompleted + 1);
-      if (userXP + 50 >= 500) {
-        setUserLevel(userLevel + 1);
-        setUserXP((userXP + 50) - 500);
+      
+      if (authToken) {
+        saveTestResult(currentTest!, score + (isCorrect ? 1 : 0), questions.length);
+      } else {
+        setUserXP(userXP + 50);
+        setTestsCompleted(testsCompleted + 1);
+        if (userXP + 50 >= 500) {
+          setUserLevel(userLevel + 1);
+          setUserXP((userXP + 50) - 500);
+        }
       }
+    }
+  };
+
+  const saveTestResult = async (testId: string, finalScore: number, totalQuestions: number) => {
+    try {
+      const response = await fetch('https://functions.poehali.dev/bc1e65c5-4cb5-4736-b9a5-f53eea7535b7', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': authToken!,
+        },
+        body: JSON.stringify({
+          action: 'save_test_result',
+          test_id: testId,
+          score: finalScore,
+          total_questions: totalQuestions,
+          xp_gained: 50,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.user) {
+        setUser(data.user);
+        setUserLevel(data.user.level);
+        setUserXP(data.user.xp);
+        setTestsCompleted(data.user.tests_completed);
+      }
+    } catch (err) {
+      console.error('Ошибка сохранения результата:', err);
     }
   };
 
@@ -96,15 +184,29 @@ export default function Index() {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="hidden sm:block text-right">
-                <p className="text-sm font-semibold">Уровень {userLevel}</p>
-                <p className="text-xs text-muted-foreground">{userXP} / 500 XP</p>
-              </div>
-              <Avatar className="border-2 border-purple-500">
-                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold">
-                  У{userLevel}
-                </AvatarFallback>
-              </Avatar>
+              {!authToken ? (
+                <Button
+                  onClick={() => setShowAuthModal(true)}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90"
+                >
+                  <Icon name="LogIn" className="mr-2" size={18} />
+                  Войти
+                </Button>
+              ) : (
+                <>
+                  <div className="hidden sm:block text-right">
+                    <p className="text-sm font-semibold">
+                      {user?.username || 'Пользователь'} • Ур. {userLevel}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{userXP} / 500 XP</p>
+                  </div>
+                  <Avatar className="border-2 border-purple-500 cursor-pointer" onClick={handleLogout} title="Выйти">
+                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold">
+                      {user?.username?.[0]?.toUpperCase() || 'У'}{userLevel}
+                    </AvatarFallback>
+                  </Avatar>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -117,6 +219,8 @@ export default function Index() {
             userXP={userXP}
             testsCompleted={testsCompleted}
             onStartTest={startTest}
+            isAuthenticated={!!authToken}
+            onShowAuth={() => setShowAuthModal(true)}
           />
         </TabsContent>
 
@@ -178,6 +282,13 @@ export default function Index() {
           </Button>
         </div>
       </div>
+
+      {showAuthModal && (
+        <AuthModal
+          onSuccess={handleAuthSuccess}
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,39 @@
+{
+  "tests": [
+    {
+      "name": "Save test result",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-Auth-Token": "test_token_placeholder"
+      },
+      "body": {
+        "action": "save_test_result",
+        "test_id": "logic",
+        "score": 7,
+        "total_questions": 8,
+        "xp_gained": 50
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "user": {
+          "id": "number"
+        }
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get achievements",
+      "method": "GET",
+      "path": "/?action=get_achievements",
+      "headers": {
+        "X-Auth-Token": "test_token_placeholder"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "achievements": "array"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -16,9 +16,11 @@ interface HomePageProps {
   userXP: number;
   testsCompleted: number;
   onStartTest: (testId: string) => void;
+  isAuthenticated?: boolean;
+  onShowAuth?: () => void;
 }
 
-export default function HomePage({ userLevel, userXP, testsCompleted, onStartTest }: HomePageProps) {
+export default function HomePage({ userLevel, userXP, testsCompleted, onStartTest, isAuthenticated, onShowAuth }: HomePageProps) {
   const levelProgress = (userXP / 500) * 100;
 
   return (
@@ -32,6 +34,27 @@ export default function HomePage({ userLevel, userXP, testsCompleted, onStartTes
             Развивай логику, внимание и память через увлекательные тесты. Зарабатывай XP и открывай достижения!
           </p>
         </div>
+
+        {!isAuthenticated && onShowAuth && (
+          <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-300 animate-scale-in">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <Icon name="Info" className="text-purple-600" size={32} />
+                <div>
+                  <p className="font-semibold text-lg text-purple-900">Войдите, чтобы сохранить прогресс</p>
+                  <p className="text-sm text-purple-700">Создайте аккаунт и ваши достижения будут сохранены</p>
+                </div>
+              </div>
+              <Button
+                onClick={onShowAuth}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90"
+              >
+                <Icon name="LogIn" className="mr-2" size={18} />
+                Войти
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="mb-8 p-6 rounded-2xl bg-white/80 backdrop-blur-sm border-2 border-purple-200 animate-scale-in">
           <div className="flex items-center justify-between mb-3">
